@@ -3,6 +3,7 @@ An analysis pipeline for patch seq data, a combination of patch-clamp electrophy
 
 # Pipeline desription
 1. ephys_feature_extraction.py
+
    Calculates electrophysiological features from raw recordings. Since this is the only script that loads raw recordings, it also generates example figures. The features are saved as ephys_features_df.csv
 2. ephys_annotation.py
    Annotates the electrophysiological features with metadata and coordinates of a t-SNE embedding. This script also clusters samples into putative pyramidal cells and interneurons  based on their electrophysiological properties. Output is ephys_features_annotated_df.csv
