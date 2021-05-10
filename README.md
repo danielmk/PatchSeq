@@ -27,4 +27,5 @@ An analysis pipeline for patch seq data, a combination of patch-clamp electrophy
    Statistically tests whether transcriptomically defined interneuron types are significantly differen regarding their electrophysiological features. Transcriptomic cell types are defined by their CPM. Does not implement multiple comparison correction yet.
 
 7. stats_differential_expression.py
+
    Differential expression analysis to identify marker genes of a specific transcriptomic cell type.
