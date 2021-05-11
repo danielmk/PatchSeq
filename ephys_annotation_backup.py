@@ -7,6 +7,8 @@ figures for the TSNE embedding with and without pyramidal cells.
 
 import os
 import numpy as np
+from neo.io import AxonIO
+import quantities as pq
 import scipy.signal
 import scipy.optimize
 import scipy.spatial
@@ -20,11 +22,12 @@ import seaborn as sns
 import umap
 import scipy.stats
 import matplotlib as mpl
+from matplotlib import gridspec
 
 """Load annotations"""
 dirname = os.path.dirname(__file__)
-annotations_path = os.path.join(dirname, "data", "annotations.csv")
-ephys_path = os.path.join(dirname, "data", "ephys_features_df.csv")
+annotations_path = os.path.join(dirname, 'data', 'annotations.csv')
+ephys_path = os.path.join(dirname, 'data', 'ephys_features_df.csv')
 
 dtypes = {
     "sample_id": str,
@@ -45,13 +48,17 @@ annotations = pd.read_csv(
 )
 
 annotations = annotations.rename(index=annotations["sample_id"])
-annotations["area_with_label"] = (annotations["label"] + " " +
-                                  annotations["area"])
+annotations["area_with_label"] = annotations["label"] + " " + annotations["area"]
 
-ephys_df = pd.read_csv(ephys_path, delimiter=",", dtype=dtypes, index_col=0)
+ephys_df = pd.read_csv(
+            ephys_path,
+            delimiter=",",
+            dtype=dtypes,
+            index_col=0
+        )
 
 col_names = ephys_df.columns
-annotated_df = pd.concat([ephys_df, annotations], axis=1, join="inner")
+annotated_df = pd.concat([ephys_df, annotations], axis=1, join='inner')
 
 """Preprocessing for dimensionality reduction"""
 ephys_dr_df = ephys_df[col_names[:-1]].dropna()
@@ -63,8 +70,8 @@ ephys_dr_df__scaled = pd.DataFrame(
 )
 
 """SEABORNE STYLING"""
-plt.rcParams["svg.fonttype"] = "none"
-mpl.rcParams.update({"font.size": 12})
+plt.rcParams['svg.fonttype'] = 'none'
+mpl.rcParams.update({'font.size': 12})
 sns.set(
     context="paper",
     style="ticks",
@@ -75,27 +82,24 @@ sns.set(
 )
 
 """Find top principal components"""
-pca = sklearn.decomposition.PCA(
-    n_components=ephys_dr_df_scaled.shape[1], random_state=3456234
-)
+pca = sklearn.decomposition.PCA(n_components=ephys_dr_df_scaled.shape[1],
+                                random_state=3456234)
 pca_output = pca.fit_transform(ephys_dr_df_scaled)
-explained_variance = pca.explained_variance_ratio_.cumsum() * 100
+explained_variance = pca.explained_variance_ratio_.cumsum()*100
 
 n_top_components = np.where(explained_variance > 99.0)[0][0]
 
 fig, ax = plt.subplots(1)
-ax.plot(
-    np.arange(1, ephys_dr_df_scaled.shape[1] + 1, 1),
-    explained_variance,
-    marker="o",
-    markersize=8,
-)
-ax.hlines(99, 1, ephys_dr_df_scaled.shape[1] + 1, linestyles="dashed")
+ax.plot(np.arange(1, ephys_dr_df_scaled.shape[1]+1, 1),
+        explained_variance,
+        marker='o',
+        markersize=8)
+ax.hlines(99, 1,ephys_dr_df_scaled.shape[1]+1, linestyles='dashed')
 ax.set_xlabel("principal component")
 ax.set_ylabel("% explained variance")
 ax.set_title("Principal Components All Cells")
 
-top_components = pca_output[:, :n_top_components]
+top_components = pca_output[:,:n_top_components]
 
 """Perform tSNE on the top components"""
 tsne = sklearn.manifold.TSNE(
@@ -127,12 +131,10 @@ sns.scatterplot(
         "SR",
         "PCL",
     ],
-    linewidth=0,
+    linewidth=0
 )
-ax.set_aspect(
-    (ax.get_xlim()[1] - ax.get_xlim()[0]) /
-    (ax.get_ylim()[1] - ax.get_ylim()[0])
-)
+ax.set_aspect((ax.get_xlim()[1] - ax.get_xlim()[0]) /
+              (ax.get_ylim()[1] - ax.get_ylim()[0]))
 
 """Perform UMAP on the top components"""
 umap_inst = umap.UMAP(n_neighbors=15, random_state=45857823)
@@ -155,12 +157,10 @@ sns.scatterplot(
         "SR",
         "PCL",
     ],
-    linewidth=0,
+    linewidth=0
 )
-ax.set_aspect(
-    (ax.get_xlim()[1] - ax.get_xlim()[0]) /
-    (ax.get_ylim()[1] - ax.get_ylim()[0])
-)
+ax.set_aspect((ax.get_xlim()[1] - ax.get_xlim()[0]) /
+              (ax.get_ylim()[1] - ax.get_ylim()[0]))
 
 """Perform hierarchy linkage clustering on tSNE"""
 ephys_df_clustering_pdist = scipy.spatial.distance.pdist(
@@ -173,20 +173,21 @@ fig, ax = plt.subplots()
 dn = scipy.cluster.hierarchy.dendrogram(ephys_df_clustering_linkage)
 ax.set_ylabel("Distance")
 
-cluster_labels = scipy.cluster.hierarchy.fcluster(
-    ephys_df_clustering_linkage, t=2, criterion="maxclust"
-)
+cluster_labels = scipy.cluster.hierarchy.fcluster(ephys_df_clustering_linkage,
+                                                 t=2,
+                                                 criterion="maxclust")
 
 
-cluster_df = pd.DataFrame(
-    cluster_labels, columns=["PC vs IN Clusters"], index=row_names_clustering
-)
+
+cluster_df = pd.DataFrame(cluster_labels,
+                          columns=["PC vs IN Clusters"], 
+                          index=row_names_clustering)
 
 cluster_categorical = pd.Categorical(cluster_labels)
 cluster_categorical.rename_categories(["PC", "IN"], inplace=True)
-cluster_df = pd.DataFrame(
-    cluster_categorical, index=ephys_df.index, columns=["PC vs IN Cluster"]
-)
+cluster_df = pd.DataFrame(cluster_categorical,
+                          index=ephys_df.index,
+                          columns=["PC vs IN Cluster"])
 
 ephys_df = pd.concat([ephys_df, cluster_df], axis=1)
 annotated_df = pd.concat([annotated_df, cluster_df], axis=1)
@@ -203,27 +204,24 @@ in_df_clustering_scaled = pd.DataFrame(
 )
 
 
-pca = sklearn.decomposition.PCA(
-    n_components=in_df_clustering_scaled.shape[1], random_state=3456234
-)
+pca = sklearn.decomposition.PCA(n_components=in_df_clustering_scaled.shape[1],
+                                random_state=3456234)
 pca_output = pca.fit_transform(in_df_clustering_scaled)
-explained_variance = pca.explained_variance_ratio_.cumsum() * 100
+explained_variance = pca.explained_variance_ratio_.cumsum()*100
 
 n_top_components = np.where(explained_variance > 99.0)[0][0]
 
 fig, ax = plt.subplots(1)
-ax.plot(
-    np.arange(1, ephys_dr_df_scaled.shape[1] + 1, 1),
-    explained_variance,
-    marker="o",
-    markersize=8,
-)
-ax.hlines(99, 1, ephys_dr_df_scaled.shape[1] + 1, linestyles="dashed")
+ax.plot(np.arange(1, ephys_dr_df_scaled.shape[1]+1, 1),
+        explained_variance,
+        marker='o',
+        markersize=8)
+ax.hlines(99, 1,ephys_dr_df_scaled.shape[1]+1, linestyles='dashed')
 ax.set_xlabel("principal component")
 ax.set_ylabel("% explained variance")
 ax.set_title("Principal Components INs only")
 
-top_components = pca_output[:, :n_top_components]
+top_components = pca_output[:,:n_top_components]
 
 """Perform tSNE on the top components"""
 tsne = sklearn.manifold.TSNE(
@@ -256,12 +254,10 @@ sns.scatterplot(
         "SST-EYFP",
         "VGlut3-EYFP",
     ],
-    linewidth=0,
+    linewidth=0
 )
-ax2.set_aspect(
-    (ax2.get_xlim()[1] - ax2.get_xlim()[0]) /
-    (ax2.get_ylim()[1] - ax2.get_ylim()[0])
-)
+ax2.set_aspect((ax2.get_xlim()[1] - ax2.get_xlim()[0]) /
+              (ax2.get_ylim()[1] - ax2.get_ylim()[0]))
 
 """Perform UMAP on the top components"""
 umap_inst = umap.UMAP(n_neighbors=15, random_state=45857823)
@@ -285,17 +281,16 @@ sns.scatterplot(
         "SST-EYFP",
         "VGlut3-EYFP",
     ],
-    linewidth=0,
+    linewidth=0
 )
 
-ax2.set_aspect(
-    (ax2.get_xlim()[1] - ax2.get_xlim()[0]) /
-    (ax2.get_ylim()[1] - ax2.get_ylim()[0])
-)
+ax2.set_aspect((ax2.get_xlim()[1] - ax2.get_xlim()[0]) /
+              (ax2.get_ylim()[1] - ax2.get_ylim()[0]))
 
 """Perform hierarchy linkage clustering on tSNE"""
-in_df_clustering_pdist = scipy.spatial.distance.pdist(tsne_output,
-                                                      metric="euclidean")
+in_df_clustering_pdist = scipy.spatial.distance.pdist(
+    tsne_output, metric="euclidean"
+)
 in_df_clustering_linkage = scipy.cluster.hierarchy.linkage(
     in_df_clustering_pdist, "single"
 )
@@ -305,10 +300,10 @@ ax.set_ylabel("Distance")
 
 """Merge the ephys_df with the embeddings"""
 annotated_df = pd.concat([annotated_df, tsne_df], axis=1)
-# ephys_df = pd.concat([ephys_df, umap_df], axis=1)
-annotated_df["area_with_label"] = (annotated_df["label"] + " " +
-                                   annotated_df["area"])
+#ephys_df = pd.concat([ephys_df, umap_df], axis=1)
+annotated_df['area_with_label'] = annotated_df['label'] + ' ' + annotated_df['area']
 
 """Save the annotated df"""
-save_path = os.path.join(dirname, "data", "ephys_features_annotated_df.csv")
+save_path = os.path.join(dirname, 'data', 'ephys_features_annotated_df.csv')
 annotated_df.to_csv(save_path)
+
