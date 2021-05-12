@@ -11,7 +11,7 @@ identification and after model validation it could be used in the future for
 cell type prediction.
 """
 
-
+import os
 import pandas as pd
 import scanpy as sc
 import matplotlib.pyplot as plt
@@ -21,101 +21,93 @@ import statsmodels.api as sm
 
 """Data loading"""
 # Load count and alignment data and merge them into one annotated dataframe
-adata = sc.read_h5ad("count_exons_introns_full_named_postqc.h5ad")
-ephys_df = pd.read_csv("ephys_df.csv", index_col=0)
-full_df = pd.read_csv("full_df.csv", index_col=0)
-annotations = pd.read_csv("annotations.csv", index_col=0, delimiter=';')
-
-"""Data wrangling"""
-adata.var_names_make_unique()
-adata.obs.index = adata.obs['id']
+dirname = os.path.dirname(__file__)
+adata_path = os.path.join(dirname, "data", "trans_anndf.h5ad")
+adata = sc.read_h5ad(adata_path)
+#adata_path = os.path.join(dirname, "data", "trans_anndf.h5ad")
+#ephys_df = pd.read_csv("ephys_df.csv", index_col=0)
+annotations_path = os.path.join(dirname, "data", "annotations.csv")
+annotations = pd.read_csv(annotations_path, index_col=0, delimiter=";")
 
 # Delete ctrl samples
-ctrl_sample_names = annotations.index[annotations['ctrl'] == 1]
-ctrl_samples_adata = ctrl_sample_names.intersection(adata.obs.index)
-non_ctrl_names = [name for name in adata.obs_names
-                  if not name in ctrl_samples_adata]
-adata = adata[non_ctrl_names, :]
+ctrl_samples = adata.obs.ctrl.astype(bool)
+adata = adata[~ctrl_samples, :]
 
 # Delete non-INs
-good_cells = (ephys_df['PC vs IN Cluster'] == 'IN')
-good_cell_names = ephys_df.index[good_cells].intersection(adata.obs.index)
-adata = adata[good_cell_names, :]
-
-# Add the label feature to adata
-adata.obs['label'] = full_df.loc[adata.obs.index, 'label']
-
-"""Feature engineering and preprocessing"""
-sst_pos = adata.obs_vector('Sst') > 0
-slc17a8_pos = adata.obs_vector('Slc17a8') > 0
-adata.obs['SST Positive'] = sst_pos
-adata.obs['Slc17a8 Positive'] = slc17a8_pos
-adata.obs['SST & Slc17a8 Positive'] = sst_pos & slc17a8_pos
-
-t_type = 'Transcriptomic Type'
-adata.obs[t_type] = 'Other'
-adata.obs.loc[sst_pos, t_type] = "SST RNA Positive"
-adata.obs.loc[slc17a8_pos, t_type] = "Slc17a8 RNA Positive"
-adata.obs.loc[sst_pos & slc17a8_pos, t_type] = "SST & Slc17a8 RNA Positive"
-
-coloc = 'SST & Slc17a8 Coloc'
-adata.obs[coloc] = 'Other'
-adata.obs[coloc][sst_pos & slc17a8_pos] = "SST & Slc17a8 Coloc"
-
-# Take log2 of the count matrix
-adata = sc.pp.log1p(adata, base=2, copy=True)
-adata.obs["SST Exp Log2"] = adata.obs_vector('Sst')
-adata.obs["Slc17a8 Exp Log2"] = adata.obs_vector('Slc17a8')
+ins = adata.obs["PC vs IN Cluster"] == "IN"
+adata = adata[ins, :]
 
 # Seaborn plot styling
-plt.rcParams['svg.fonttype'] = 'none'
-sns.set(context='paper',
-        style='ticks',
-        palette='colorblind',
-        font='Arial',
-        font_scale=2,
-        color_codes=True)
+plt.rcParams["svg.fonttype"] = "none"
+sns.set(
+    context="paper",
+    style="ticks",
+    palette="colorblind",
+    font="Arial",
+    font_scale=2,
+    color_codes=True,
+)
 
 # SST vs VGLUT3 Scatter
 fig, ax = plt.subplots(1)
-sns.scatterplot(x=adata.obs["SST Exp Log2"],
-                y=adata.obs["Slc17a8 Exp Log2"],
-                ax=ax,
-                s=150,
-                linewidth=0)
-ax.set_xlabel("Sst Expr Log2")
-ax.set_ylabel("Slc17a8 Expr Log2")
+sns.scatterplot(
+    x=adata.obs["SST Log2 CPM"],
+    y=adata.obs['Slc17a8 Log2 CPM'],
+    ax=ax,
+    s=150,
+    linewidth=0,
+)
+ax.set_xlabel("Sst Log2 CPM")
+ax.set_ylabel("Slc17a8 Log2 CPM")
 
 """Differential expression analysis"""
-sc.tl.rank_genes_groups(adata, 
-                        groupby='SST & Slc17a8 Coloc',
-                        method='wilcoxon',
-                        key_added='diff_exp',
-                        pts=True,
-                        n_genes=50)
+coloc_cat = adata.obs['SST & Slc17a8 Positive'].astype('category')
+adata.obs['SST & Slc17a8 Positive'] = coloc_cat
+sc.tl.rank_genes_groups(
+    adata,
+    groupby='SST & Slc17a8 Positive',
+    method="wilcoxon",
+    key_added="diff_exp",
+    pts=True,
+    n_genes=50,
+)
 
-diff_genes = np.array(adata.uns['diff_exp']['names']['SST & Slc17a8 Coloc'],
-                      dtype=np.str)
+diff_genes = np.array(
+    adata.uns["diff_exp"]["names"]["True"], dtype=np.str
+)
 """Differential expression analysis heatmap"""
-sc.pl.heatmap(adata,
-              var_names=diff_genes,
-              groupby='SST & Slc17a8 Coloc')
+sc.pl.heatmap(adata, var_names=diff_genes, groupby="SST & Slc17a8 Positive")
 
 """Interneuron marker analysis"""
-markers = ["Gad1", "Drd2", "Npy", 'Sst', "Chat", "Th", "Pvalb", "Htr3a",
-           "Lhx6", "Tac1", "Cox6a2", "Sox11", "Slc17a8"]
+markers = [
+    "Gad1",
+    "Drd2",
+    "Npy",
+    "Sst",
+    "Chat",
+    "Th",
+    "Pvalb",
+    "Htr3a",
+    "Lhx6",
+    "Tac1",
+    "Cox6a2",
+    "Sox11",
+    "Slc17a8",
+]
 # 'Igfbp4', 'Igfbpl1' kept out becauselow variance.
 # Excluded Markers: ['Gpr88', 'D830015G02Rik', 'Adora2a', 'Drd1a', 'Pthlh',
 # 'Chodl', 'Hhip', 'Mia', 'Slc5a7', 'Trh', 'Igfbp4', 'Igfbpl1']
 
 fig, ax = plt.subplots(1)
-stacked_violin = sc.pl.stacked_violin(adata,
-                                      markers,
-                                      groupby="Transcriptomic Type",
-                                      stripplot=True,
-                                      swap_axes=True,
-                                      size=3,
-                                      ax=ax)
+stacked_violin = sc.pl.stacked_violin(
+    adata,
+    markers,
+    groupby="Transcriptomic Type",
+    stripplot=True,
+    swap_axes=True,
+    size=3,
+    ax=ax,
+)
 plt.xticks(rotation=0)
 
 """Train GLM to distinguish colocalizing from other cells using the markers"""
@@ -132,16 +124,16 @@ binomial_results = binomial_model.fit()
 print(binomial_results.summary())
 
 classes = classes.rename_categories(["Other", "SST & Slc17a8 RNA Positive"])
-binomial_prediction = pd.DataFrame({"classes": classes,
-                                    "prediction": binomial_results.predict()})
+binomial_prediction = pd.DataFrame(
+    {"classes": classes, "prediction": binomial_results.predict()}
+)
 
 fig, ax = plt.subplots(1)
-sns.swarmplot(x="classes",
-              y ="prediction",
-              data=binomial_prediction,
-              ax=ax, s=10, alpha=0.8)
+sns.swarmplot(
+    x="classes", y="prediction", data=binomial_prediction, ax=ax, s=10, alpha=0.8
+)
 ax.set_ylabel("GLM Prediction")
 
 """Write the binomial GLM parameters to file"""
-with open('glm_transcriptomic_type_output.csv','w') as f:
+with open("glm_transcriptomic_type_output.csv", "w") as f:
     f.write(binomial_results.summary().as_csv())

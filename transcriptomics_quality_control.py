@@ -25,7 +25,6 @@ dirname = os.path.dirname(__file__)
 adata_path = os.path.join(dirname, 'data', 'count_exons_introns_full_named.h5ad')
 adata = sc.read_h5ad(adata_path)
 
-#
 adata.obs.index = np.array([x.split('.')[0] for x in adata.obs.index], dtype = str)
 
 alignment_path = os.path.join(dirname, 'data', 'mapping_stats.csv')
