@@ -357,8 +357,6 @@ for x in annotations["sample_id"]:
 result_df = result_df.astype(float)
 
 '''Plot example traces'''
-# fig = plt.figure(figsize=(8.25, 11.7083333333333334),
-#                 constrained_layout=True)
 fig = plt.figure(figsize=(7.5, 13.33), constrained_layout=True)
 plt.rcParams["svg.fonttype"] = "none"
 sns.set(
@@ -446,4 +444,4 @@ ax.set_yticks(np.arange(-200, 601, 200))
 
 '''Save ephys_df.csv'''
 save_path = os.path.join(dirname, "data", "ephys_features_df.csv")
-result_df.to_csv("ephys_features_df.csv")
+result_df.to_csv(save_path)
