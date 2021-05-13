@@ -1,27 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 This script analyses the difference between the transgenically
-defined cell types using rank sum tests for each feature. 
+defined cell types using rank sum tests for each feature.
 """
 
 import os
-import numpy as np
-from neo.io import AxonIO
-import quantities as pq
-import scipy.signal
-import scipy.optimize
-import scipy.spatial
-import sklearn.manifold
-import sklearn.preprocessing
-import sklearn.decomposition
-import scipy.cluster.hierarchy
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import umap
-import scipy.stats
-import matplotlib as mpl
-from matplotlib import gridspec
 from scipy.stats import ranksums
 
 """Data"""
@@ -29,8 +13,8 @@ dirname = os.path.dirname(__file__)
 data_path = os.path.join(dirname, 'data', 'ephys_full_df.csv')
 
 data_df = pd.read_csv(data_path,
-                        delimiter=",",
-                        index_col=0)
+                      delimiter=",",
+                      index_col=0)
 
 result_dict = {}
 features = ['Max. Freq. (Hz)',
@@ -64,7 +48,7 @@ for f in features:
     result = ranksums(x, y)
     result_dict[f] = [result.statistic, result.pvalue]
 
-result_df = pd.DataFrame.from_dict(result_dict, 
+result_df = pd.DataFrame.from_dict(result_dict,
                                    orient='index',
                                    columns=['Statistic', 'pvalue'])
 output_path = os.path.join(dirname, 'data', 'stats_ephys_transgenic_type.csv')
